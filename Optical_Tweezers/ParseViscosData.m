@@ -238,13 +238,14 @@ function varargout = ParseViscosData(N,R,T,varargin)
     for itD = 1:MaxNumData
         cnt = 0;
         for it = 1:N
-            if ~isnan(X{it}(itD))
-                if isnan(DistSqAvg(itD))
+            if ~isnan(DistSq{it}(itD))
+                if isnan(DistSqAvg(itD)) && isnan(DistSqVar(itD))
                     DistSqAvg(itD) = DistSq{it}(itD);
                     DistSqVar(itD) = DistSq{it}(itD)^2;
+                else
+                    DistSqAvg(itD) = DistSqAvg(itD) + DistSq{it}(itD);
+                    DistSqVar(itD) = DistSqVar(itD) + DistSq{it}(itD)^2;
                 end
-                DistSqAvg(itD) = DistSqAvg(itD) + DistSq{it}(itD);
-                DistSqVar(itD) = DistSqVar(itD) + DistSq{it}(itD)^2;
                 cnt = cnt + 1;
             end
         end

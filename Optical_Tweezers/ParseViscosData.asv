@@ -209,7 +209,7 @@ function varargout = ParseViscosData(N,R,T,varargin)
             DriftAvg_Y = DriftAvg_Y + Y{it}(round(10*PlotTimeRange));
             Drift_num = Drift_num + 1;
         else
-            error('ERR: some data do not have data ');
+            error(['ERR: some tracking data do not have data at time',sprintf('%.15g',PlotTimeRange),'. Change ''PlotTimeRange''']);
         end
     end
     DriftAvg_X = DriftAvg_X/Drift_num;
@@ -238,8 +238,8 @@ function varargout = ParseViscosData(N,R,T,varargin)
     for itD = 1:MaxNumData
         cnt = 0;
         for it = 1:N
-            if ~isnan(X{it}(itD))
-                if isnan(DistSqAvg(itD))
+            if ~isnan(DistSq{it}(itD))
+                if isnan(DistSqAvg(itD)) && isnan(DistSqVar(itD))
                     DistSqAvg(itD) = DistSq{it}(itD);
                     DistSqVar(itD) = DistSq{it}(itD)^2;
                 end
@@ -251,6 +251,15 @@ function varargout = ParseViscosData(N,R,T,varargin)
         if cnt > 0
             DistSqAvg(itD) = DistSqAvg(itD)/cnt;
             DistSqVar(itD) = DistSqVar(itD)/cnt - DistSqAvg(itD)^2;
+            if DistSqVar(itD) < 0 && itD < 1200
+                for itr = 1:N
+                    disp(DistSq{itr}(itD));
+                end
+                disp(cnt);
+                disp(DistSqAvg(itD));
+                disp(DistSqVar(itD));
+                disp(DistSqVar(itD)*cnt + cnt*DistSqAvg(itD)^2);
+            end
         end
     end
     
