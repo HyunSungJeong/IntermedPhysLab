@@ -145,6 +145,8 @@ function varargout = ParseViscosData(N,R,T,varargin)
     DataIdx = cell(1,N);
     
     for it = 1:N
+        % TODO
+        % Change the path to the folder where data are stored
         data = importdata(['C:\Users\82104\Documents\서울대학교\2025\중급물리실험 1\Optical Tweezers\20250401\',sprintf('%d',R),'um\Viscosdata',num2str(it),'.txt']);   % load data
         if isstruct(data)
             data = data.data;
