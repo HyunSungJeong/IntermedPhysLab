@@ -204,8 +204,8 @@ function varargout = ParseViscosData(N,R,T,varargin)
     Drift_num = 0;
     for it = 1:N
         if ~isnan(X{it}(900))
-            DriftAvg_X = DriftAvg_X + X{it}(900);
-            DriftAvg_Y = DriftAvg_Y + Y{it}(900);
+            DriftAvg_X = DriftAvg_X + X{it}(round(10*PlotTimeRange));
+            DriftAvg_Y = DriftAvg_Y + Y{it}(round(10*PlotTimeRange));
             Drift_num = Drift_num + 1;
         else
             error('Choose another time');
@@ -214,7 +214,7 @@ function varargout = ParseViscosData(N,R,T,varargin)
     DriftAvg_X = DriftAvg_X/Drift_num;
     DriftAvg_Y = DriftAvg_Y/Drift_num;
     if CorrectDrift_default
-        DriftVel = [DriftAvg_X/90, DriftAvg_Y/90];
+        DriftVel = [DriftAvg_X/PlotTimeRange, DriftAvg_Y/PlotTimeRange];
     elseif ~CorrectDrift_custom
         DriftVel = [0,0];
     end
@@ -266,17 +266,17 @@ function varargout = ParseViscosData(N,R,T,varargin)
         Y{it}(EmptyIdx) = [];
         DistSq{it}(EmptyIdx) = [];
     end
-    
-    EmptyIdx = isnan(DistSqAvg);
-    DistSqAvg(EmptyIdx) = [];
-    DistSqVar(EmptyIdx) = [];
-    time(EmptyIdx) = [];
 
     PlotFrames = round(10*PlotTimeRange);   % Number of frames to be used for fitting and plotting
     if PlotFrames > numel(DistSqAvg)
         disp(numel(DistSqAvg))
         error('ERR: ''PlotTimeRange'' must be smaller than the time length of tracked data');
     end
+    
+    EmptyIdx = isnan(DistSqAvg);
+    DistSqAvg(EmptyIdx) = [];
+    DistSqVar(EmptyIdx) = [];
+    time(EmptyIdx) = [];
 
     % linear fit <r^2> - time data and calculate viscosity
     mdl = fitlm(time(1:PlotFrames),DistSqAvg(1:PlotFrames),'Intercept',false);
@@ -285,7 +285,6 @@ function varargout = ParseViscosData(N,R,T,varargin)
     coeff = [slope,0];
 
     Viscosity = (1e18)*2*kb*T/(3*pi*R*slope);
-    %Viscosity = (1e18)*kb*T/(3*pi*R*slope);
     Stdev = sqrt(DistSqVar);
 
 
@@ -294,7 +293,7 @@ function varargout = ParseViscosData(N,R,T,varargin)
     if plotFig
         figure;
         hold on;
-        xlim([0,120]);
+        xlim([0,PlotTimeRange]);
         
         legend('AutoUpdate','off');
         errorbar(time(1:40:PlotFrames),DistSqAvg(1:40:PlotFrames),Stdev(1:40:PlotFrames),'-.','CapSize',10,'LineWidth',1.2);
