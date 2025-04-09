@@ -21,7 +21,8 @@ function varargout = ParseViscosData(N,R,T,varargin)
     %       (Default: 120)
     % '-v' : If used, the <r^2> vs time is plotted together wit a linear fit
     %       (Default: not used)
-    % 'ShowText' : If used, the viscosity, R^2 value of linear fit, and the fitted equation is shown together with the plot
+    % 'ShowText' : If used together with '-v' option,
+    %           viscosity, R^2 value of linear fit, and the fitted equation is shown together with the plot
     %       (Default: not used)
     %
     % <Output>
@@ -169,7 +170,7 @@ function varargout = ParseViscosData(N,R,T,varargin)
     
                 if sqrt((X_now-X_prev)^2 + (Y_now-Y_prev)^2) > 1e-6     % if there is a sudden jump of coordinates
         
-                    % calculate the amout of sudden jump
+                    % calculate the amount of sudden jump
                     TimeJump = Time_now - Time_prev;
                     Xjump = X_now - X_prev;
                     Yjump = Y_now - Y_prev;
@@ -203,12 +204,12 @@ function varargout = ParseViscosData(N,R,T,varargin)
     DriftAvg_Y = 0;
     Drift_num = 0;
     for it = 1:N
-        if ~isnan(X{it}(900))
+        if ~isnan(X{it}(round(10*PlotTimeRange)))
             DriftAvg_X = DriftAvg_X + X{it}(round(10*PlotTimeRange));
             DriftAvg_Y = DriftAvg_Y + Y{it}(round(10*PlotTimeRange));
             Drift_num = Drift_num + 1;
         else
-            error('Choose another time');
+            error(['ERR: some tracking data do not have data at time',sprintf('%.15g',PlotTimeRange),'. Change ''PlotTimeRange''']);
         end
     end
     DriftAvg_X = DriftAvg_X/Drift_num;
