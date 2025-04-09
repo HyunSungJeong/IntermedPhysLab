@@ -21,7 +21,7 @@ function varargout = ParseViscosData(N,R,T,varargin)
     %       (Default: 120)
     % '-v' : If used, the <r^2> vs time is plotted together wit a linear fit
     %       (Default: not used)
-    % 'ShowText' : If used, the viscosity, R^2 value of linear fit, and the fitted equation is used shown in the plot
+    % 'ShowText' : If used, the viscosity, R^2 value of linear fit, and the fitted equation is shown together with the plot
     %       (Default: not used)
     %
     % <Output>
