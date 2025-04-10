@@ -1,11 +1,11 @@
-function varargout = ParseViscosData(N,R,T,varargin)
+function varargout = ParseViscosData(N,D,T,varargin)
     % <Description>
     % Parses raw Tracker data from Brownian motion experiment and gives 
     % processed data such as x, y displacement, average of distance sqaured, etc.
     %
     % <Input>
     % N : [integer] Number of tracked particles data
-    % R : [numeric] Radius of microscopic particle used in experiment, in units of micrometer
+    % D : [numeric] Diameter of microscopic particle used in experiment, in units of micrometer
     % T : [numeric] Temperature in Kelvins
     % 
     % <Options>
@@ -50,10 +50,10 @@ function varargout = ParseViscosData(N,R,T,varargin)
         error('ERR: ''N'' must be a positive integer');
     end
 
-    if ~isnumeric(R)
-        error('ERR: ''R'' must be a positive real number');
-    elseif R <= 0
-        error('ERR: ''R'' must be a positive real number');
+    if ~isnumeric(D)
+        error('ERR: ''D'' must be a positive real number');
+    elseif D <= 0
+        error('ERR: ''D'' must be a positive real number');
     end
 
     if ~isnumeric(T)
@@ -148,7 +148,7 @@ function varargout = ParseViscosData(N,R,T,varargin)
     for it = 1:N
         % TODO
         % Change the path to the folder where data are stored
-        data = importdata(['C:\Users\82104\Documents\서울대학교\2025\중급물리실험 1\Optical Tweezers\20250401\',sprintf('%d',R),'um\Viscosdata',num2str(it),'.txt']);   % load data
+        data = importdata(['C:\Users\82104\Documents\서울대학교\2025\중급물리실험 1\Optical Tweezers\20250401\',sprintf('%d',D),'um\Viscosdata',num2str(it),'.txt']);   % load data
         if isstruct(data)
             data = data.data;
         end
@@ -286,7 +286,7 @@ function varargout = ParseViscosData(N,R,T,varargin)
     Rsq = mdl.Rsquared.Ordinary;
     coeff = [slope,0];
 
-    Viscosity = (1e18)*2*kb*T/(3*pi*R*slope);
+    Viscosity = (1e18)*4*kb*T/(3*pi*D*slope);
     Stdev = sqrt(DistSqVar);
 
 
@@ -323,7 +323,7 @@ function varargout = ParseViscosData(N,R,T,varargin)
         legend(AvgLegend,'$\langle r^{2} \rangle$','Interpreter','latex','Location','northeast','FontSize',25);
         xlabel('$\mathrm{time} \left( s \right)$','Interpreter','latex','FontSize',25);
         ylabel('$\mathrm{distance^{2}} \left( \mu \mathrm{m}^{2} \right)$','Interpreter','latex','FontSize',25);
-        title(['$\mathrm{Brownian \ motion} \left(', sprintf('%.15g',R),'\mu m \right)$'],'Interpreter','latex','FontSize',30);
+        title(['$\mathrm{Brownian \ motion} \left(', sprintf('%.15g',D),'\mu m \right)$'],'Interpreter','latex','FontSize',30);
         hold off;
     end
     
