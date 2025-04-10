@@ -7,10 +7,10 @@ function [DriftVel,GaussianFit] = GaussianScatter(Time,X,Y,varargin)
     % Time : [cell array of numeric vectors] Each cell element is a vector of frame times, for each particle. 
     % X : [cell array of numeric vectors] 1xN cell array. 
     %           Each cell element is a numeric vector of the x-displacement of each particle 
-    %           at times given by output variable 'time'
+    %           at times given by input variable 'Time'
     % Y : [cell array of numeric vectors] 1xN cell array. 
     %           Each cell element is a numeric vector of the y-displacement of each particle 
-    %           at times given by output variable 'time'
+    %           at times given by input variable 'Time'
     %
     % <Option>
     % '-v' : If used, the scatter plot of velocities of all successive
