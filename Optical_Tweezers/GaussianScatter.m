@@ -1,4 +1,4 @@
-function [DriftVel,GaussianFit] = GaussianScatter_MK(Time,X,Y,varargin)
+function [DriftVel,GaussianFit] = GaussianScatter(Time,X,Y,varargin)
     % <Description>
     % Obtains average drift velocity for each particle, by obtaining the
     % average velocity of all successive brownain motion
