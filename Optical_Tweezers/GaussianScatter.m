@@ -1,4 +1,4 @@
-function [DriftVel,GaussianFit] = GaussianScatter(Time,X,Y,varargin)
+function [DriftVel,GaussianFit] = GaussianScatter_MK(Time,X,Y,varargin)
     % <Description>
     % Obtains average drift velocity for each particle, by obtaining the
     % average velocity of all successive brownain motion
@@ -146,4 +146,50 @@ function [DriftVel,GaussianFit] = GaussianScatter(Time,X,Y,varargin)
         yunit = r * sin(th) + y;
         plot(xunit, yunit);
     end
+  
+    Xdata = (-1000:1000)/100;
+    Cx = zeros(1,numel(Xdata));
+    for ix = 1:numel(Xdata)
+        for it = 1:numel(Time{1})-1
+            if (Vx{1}(it) < (ix-1000)/100)
+                Cx(ix) = Cx(ix) + 1;
+            end
+        end
+    end
+    Cx = Cx/numel(Time{1});
+
+    % Your data
+    % Define the model: y = a * erf(b * x + c) + d
+
+    t = (0:length(Cx)-1)';         % Time index
+    x = t / 1000-1;                  % Independent variable
+    y = Cx.';   
+    mu = mean(Vx{1});
+    sigma = std(Vx{1});
+
+    ft = fittype('erf(a*x) + 0.5', 'independent', 'x');
+
+    % Initial guesses for parameters [a, b, c, d]
+    startPoints = [0.01];
+    fitResult = fit(x, y, ft, 'StartPoint', startPoints);
+
+    % Plot
+    figure;
+    hold on;
+    plot(x, y,'.','MarkerSize', 10, 'Color', 'red');
+    plot(x, 0.5*erf((1/sqrt(2)*sigma)*x)+0.5,'--', 'LineWidth', 2, 'Color', 'black');
+    xlabel('$x$', 'Interpreter','latex', 'FontSize', 20);
+    ylabel('$\mathrm{CDF}$', 'Interpreter','latex', 'FontSize', 20);
+    ax.XAxis.FontSize = 15;
+    ax.YAxis.FontSize = 15;
+    title('K-S Test', 'FontSize',30);
+    legend({'Empirical CDF', 'Erf. fit'},'Location','southeast','FontSize',20);
+
+    hold off;
+
+    % K-S test against N(mu, sigma)
+    [h, p, ksstat] = kstest(Vx{1}, 'CDF', makedist('Normal', 'mu', mu, 'sigma', sigma));
+    fprintf('h = %d (1 = reject null), p = %.4f, KS Statistic = %.4f\n', h, p, ksstat);
+    hold off;
+
 end
