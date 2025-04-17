@@ -55,12 +55,15 @@ function varargout = ConvFit(theta, I, slitDist, slitWidth, varargin)
     %
     % <Output>
     % The fitting parameters are given as output.
-    % The output parameters are naturally dependent on the fitting option used.
-    % 1. 'NoConv' : [gamma, I_0, a, b, c, d]
-    % 2. 'FitLorentz' : [gamma, I_0]
-    % 3. 'FitSingle' : [gamma, I_0, a, b]
-    % 4. 'FitDouble' : [gamma, I_0, b, c]
-    % 5. 'FitAll' : [gamma, a, b, c]
+    % The output parameters are naturally dependent on the fitting model used.
+    % 1. 'FitAll' : [lambda, I_0, thetaShift, Ishift]
+    % 2. 'FitLambda' : [lambda, I_0]
+    % 3. 'FitIntensity' : [I_0]
+    % 
+    % If one of the convolution fitting options is used,
+    % gamma('Lorentz' convolution) or sigma('Gauss' convolution) is appended to the first element of the output
+    % e.g)
+    % 'FitAll' and 'Lorentz' --> output is [gamma, lambda, I_0, thetaShift, Ishift]
     
     %% Parse inputs
     if ~isnumeric(theta)
@@ -192,7 +195,9 @@ function varargout = ConvFit(theta, I, slitDist, slitWidth, varargin)
             else        % without convolution
 
                 Params0 = [700, 1e4, 0, 0];       % initial values of fitting parameters. [lambda, I_0, thetaShift, Ishift]
-                FitParams = lsqcurvefit(Model, Params0, theta, I);
+                LowerBound = [0, 0, -Inf, -Inf];
+                UpperBound = Inf(1,4);
+                FitParams = lsqcurvefit(Model, Params0, theta, I, LowerBound, UpperBound);
         
                 if nargout ~= 4
                     error('ERR: When ''FitAll'' fitting model is used without convolution, the number of output data must be 4');
@@ -201,21 +206,94 @@ function varargout = ConvFit(theta, I, slitDist, slitWidth, varargin)
                 end
             end
 
-            if PlotFit
-                figure;
-                hold on;
-                plot(theta, I,'.','Color','black');
-                plot(theta, Model(FitParams,theta));
-                hold off;
-            end
-
     
         case 'FitLambda'
 
+            if isequal(ConvOp, 'Lorentz')       % convolution with Lorentzian
+                Model = getConvModel(@FitLambdaModel, @Lor);
+            elseif isequal(ConvOp, 'Gauss')     % convolution with Gaussian function
+                Model = getConvModel(@FitLambdaModel, @Gauss);
+            else        % without convolution
+                Model = @FitLambdaModel;
+            end
 
+            if UseConv      % with convolution
 
+                Params0 = [1, 700, 1e4];
+                LowerBound = [0, 0, 0];
+                UpperBound = Inf(1,3);
+                FitParams = lsqcurvefit(Model, Params0, theta, I, LowerBound, UpperBound);
     
+                if nargout ~= 3
+                    error('ERR: When ''FitLambda'' fitting model is used with convolution, the number of output data must be 3');
+                else
+                    varargout = num2cell(FitParams,1);
+                end
+                
+
+            else        % without convolution
+
+                Params0 = [700, 1e4];       % initial values of fitting parameters. [lambda, I_0, thetaShift, Ishift]
+                LowerBound = [0, 0];
+                UpperBound = Inf(1,2);
+                FitParams = lsqcurvefit(Model, Params0, theta, I, LowerBound, UpperBound);
+        
+                if nargout ~= 2
+                    error('ERR: When ''FitLambda'' fitting model is used without convolution, the number of output data must be 2');
+                else
+                    varargout = num2cell(FitParams,1);
+                end
+
+            end
+
         case 'FitIntensity'
+
+            % ***we must use FitLambdaModel when convultion is used, since we have to perform k-integration
+            if isequal(ConvOp, 'Lorentz')       % convolution with Lorentzian
+                Model = getConvModel(@FitLambdaModel, @Lor, 'FixLambda', lambda);
+            elseif isequal(ConvOp, 'Gauss')     % convolution with Gaussian function
+                Model = getConvModel(@FitLambdaModel, @Gauss, 'FixLambda', lambda);
+            else        % without convolution
+                Model = @FitIntensityModel;
+            end
+
+            if UseConv      % with convolution
+
+                Params0 = [1e-1, 1.9*1e4];
+                LowerBound = [0, 0];
+                UpperBound = Inf(1,2);
+                FitParams = lsqcurvefit(Model, Params0, theta, I, LowerBound, UpperBound);
+    
+                if nargout ~= 2
+                    error('ERR: When ''FitIntensity'' fitting model is used with convolution, the number of output data must be 2');
+                else
+                    varargout = num2cell(FitParams,1);
+                end
+                
+
+            else        % without convolution
+
+                Params0 = 700;       % initial values of fitting parameters. [lambda, I_0, thetaShift, Ishift]
+                LowerBound = 0;
+                UpperBound = Inf;
+                FitParams = lsqcurvefit(Model, Params0, theta, I, LowerBound, UpperBound);
+        
+                if nargout ~= 1
+                    error('ERR: When ''FitIntensity'' fitting model is used without convolution, the number of output data must be 1');
+                else
+                    varargout = num2cell(FitParams,1);
+                end
+
+            end
+
+    end % switch-case
+
+    if PlotFit      % if '-v' option is used
+        figure;
+        hold on;
+        plot(theta, I,'.','Color','black');
+        plot(theta, Model(FitParams,theta));
+        hold off;
     end
     
     
@@ -276,11 +354,25 @@ function varargout = ConvFit(theta, I, slitDist, slitWidth, varargin)
     end
 
     % 'FitIntensity' model
+    function I = FitIntensityModel(Params, theta)
+        % Params = [I_0]
+
+        I = zeros(numel(theta),1);
+        for it = 1:numel(I)
+            if theta(it) ~= thetaShift
+                I(it) = Params(1) * cos( Gamma(lambda, slitDist, theta(it)-thetaShift) )^2;
+                I(it) = I(it) * sin( Beta(lambda, slitWidth, theta(it)-thetaShift) )^2 / Beta(lambda, slitWidth, theta(it)-thetaShift)^2;
+                I(it) = I(it) + Ishift;
+            else
+                I(it) = Params(1) * cos( Gamma(lambda, slitDist, theta(it)-thetaShift) )^2 + Ishift;
+            end
+        end
+    end
 
 
     %% Define convolution function
 
-    function ConvModelHandle = getConvModel(ModelFunc, ConvKer)
+    function ConvModelHandle = getConvModel(ModelFunc, ConvKer, varargin)
         % <Description>
         % Generates function handle for the convolution of given monocromatic function and the convolution kernel
         %
@@ -289,25 +381,64 @@ function varargout = ConvFit(theta, I, slitDist, slitWidth, varargin)
         %             The first element of the fitting parameter of ModelFunc, Params(1), must be lambda(wavelength of light in nanometers)
         % ConvKer : function handle for the convolution kernel
         %
+        % <Option>
+        % 'FixLambda', ... : [numeric] If the central value of lambda is specified by this options,
+        %                              lambda is treated as a fixed value instead of a fitting parameter
+        %                               (Default: not used. Central value of lambda is fitted from data)
+        %
         % <Output>
         % Function handle of the model function obtained by convolution of ModelFunc and ConvFunc
         % Let Params_orig be the fitting parameters of ModelFunc, and let Params_conv be the fitting parameter of the convolution kernel.
         % Then, Params = [Params_orig, Params_conv] is the fitting parameter of the output function, ConvFunc.
         % Therefore, ConvFunc is a function of Params = [Params_orig, Params_conv] and theta.
 
-        function I = ConvModel(Params, theta) 
+        lambdaFixed = false;
+
+        while ~isempty(varargin)
+            switch varargin{1}
+                case 'FixLambda'
+                    if ~isnumeric(varargin{2})
+                        error('ERR: lambda must be a positive real number');
+                    elseif varargin{2} < 0
+                        error('ERR: lambda must be positive');
+                    else
+                        lambda_C = varargin{2};
+                        lambdaFixed = true;
+                        varargin(1:2) = [];
+                    end
+                otherwise
+                    if ~ischar(varargin{1})
+                    error('ERR: Unknown input for getConvModel');
+                    else
+                        error(['ERR: Unknown option ''',varargin{1},''' for getConvModel']);
+                    end
+            end
+        end
+
+        function I = ConvModel(Params, theta)
 
             function Y = ModelFunc_k(k,theta)   % ModelFunc in k-space
                 Y = zeros(size(k));
                 for itx = 1:numel(Y)
-                    Y(itx) = ModelFunc([2*pi/k(itx), Params(3:end)], theta);
+                    if ~lambdaFixed
+                        Y(itx) = ModelFunc([2*pi/k(itx), Params(3:end)], theta);
+                    else
+                        Y(itx) = ModelFunc([2*pi/k(itx), Params(2:end)], theta);
+                    end
                 end
             end
 
             I = zeros(numel(theta),1);
             for it = 1:numel(I)
-                ConvInt = @(k) ModelFunc_k(k+2*pi/Params(2), theta(it)).*ConvKer(Params(1), k);        % convolution integrand
-                I(it) = Integrate_symlog(ConvInt, -10*Params(1), 10*Params(1), 2e2*(16+log10(Params(1))) );
+
+                % define convolution integrand
+                if ~lambdaFixed     % If lambda is not fixed by input
+                    ConvInt = @(k) ModelFunc_k(k+2*pi/Params(2), theta(it)).*ConvKer(Params(1), k);        
+                else                % If lambda is fixed by input
+                    ConvInt = @(k) ModelFunc_k(k+2*pi/lambda_C, theta(it)).*ConvKer(Params(1), k);
+                end
+
+                I(it) = Integrate_symlog(ConvInt, -10*Params(1), 10*Params(1), 2e2*(16+log10(Params(1))) );     % convolution integration
             end
         end
 
@@ -328,7 +459,7 @@ function varargout = ConvFit(theta, I, slitDist, slitWidth, varargin)
         % N : [numeric] number of total logarithmic grid points.
         %
         % <Output>
-        % Int : [numeric] approximate value of the integral ∫_a^b f(x) dx
+        % Int : [numeric] approximate value of the integral \int_{min}^{max} f(x) dx
         
         if min >= 0 || max <= 0
             error('ERR: This function requires min < 0 and max > 0 to integrate around zero.');
@@ -339,7 +470,7 @@ function varargout = ConvFit(theta, I, slitDist, slitWidth, varargin)
         end
         N_half = N / 2;
     
-        xL = -logspace(log10(abs(min)), log10(1e-16), N_half);  % create log grid for left(negative) side
+        xL = - logspace(log10(abs(min)), log10(1e-16), N_half); % create log grid for left(negative) side
         xR = logspace(log10(1e-16), log10(max), N_half);        % create log grid for right(positive) side
         x = [xL, xR];   % combine grid   
         y = f(x);       % evaluate function on grid
