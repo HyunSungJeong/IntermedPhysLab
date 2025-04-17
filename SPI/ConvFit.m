@@ -20,13 +20,13 @@ function varargout = ConvFit(theta, I, slitDist, slitWidth, varargin)
     %               I(theta) = I_0 * [sin( \beta(theta - thetaShift) ) / \beta(theta - thetaShift) ]^2 * cos^2(\gamma(theta - thetaShift)) + Ishift
     %            Where \beta(theta) = 0.5*(2*pi/lambda)*slitWidth*sin(theta)
     %                  \gamma(theta) = 0.5*(2*pi/lambda)*slitDist*sin(theat)
-    %            (I_0, lambda, thetaShift, Ishift) are fitting parameters, and there is no convolution
+    %            (lambda, I_0, thetaShift, Ishift) are fitting parameters, and there is no convolution
     %
     % 'FitLambda', ... : [numeric] Similar to 'NoConv1' option, but 'thetaShift' and 'Ishift' are fixed.
     %                            The inputs must be 'thetaShift' and 'Ishift', in this given order.
     %                            'thetaShift' must be in units of miliradians, and
     %                            'Ishift' must be either voltage(laser experiments) in mV units or # of photons(single-photon experiments).
-    %                            (I_0, lambda) are fitting parameters.
+    %                            (lambda, I_0) are fitting parameters.
     %
     % 'FitIntensity', ... : [numeric] Similar to 'NoConv2' option, but 'lambda' is also fixed.
     %                            The inputs must be 'lambda', 'thetaShift', and 'Ishift', in this given order.
@@ -43,11 +43,15 @@ function varargout = ConvFit(theta, I, slitDist, slitWidth, varargin)
     %             and gamma is a fitting parameter
     %             (Default: not used)
     %
-    % 'Gaussian' : When used, the convolution of the chosen fitting model and the Gaussian function is used as the fitting model.
+    % 'Gauss' : When used, the convolution of the chosen fitting model and the Gaussian function is used as the fitting model.
     %              The Gaussian function is defined as
     %                   Gauss(x) = (1/sqrt(2*pi*sigma^2))*exp(-x^2/(2*sigma^2))
     %              and sigma is a fitting parameter
     %              (Default: not used)
+    %
+    % <Other options>
+    % '-v' : When used, the data is plotted together with the fitted curve
+    %           (Default: not used)
     %
     % <Output>
     % The fitting parameters are given as output.
@@ -91,7 +95,8 @@ function varargout = ConvFit(theta, I, slitDist, slitWidth, varargin)
 
     % Default options
     fitModel = NaN;
-    convFunc = NaN;
+    ConvOp = NaN;
+    PlotFit = false;
 
     % parse input options
     while ~isempty(varargin)
@@ -133,12 +138,16 @@ function varargout = ConvFit(theta, I, slitDist, slitWidth, varargin)
     
             case 'Lorentz'
                 UseConv = true;
-                ConvFunc = 'Lorentz';
+                ConvOp = 'Lorentz';
                 varargin(1) = [];
 
-            case 'Gaussian'
+            case 'Gauss'
                 UseConv = true;
-                ConvFunc = 'Gaussian';
+                ConvOp = 'Gauss';
+                varargin(1) = [];
+
+            case '-v'
+                PlotFit = true;
                 varargin(1) = [];
 
             otherwise
@@ -157,64 +166,185 @@ function varargout = ConvFit(theta, I, slitDist, slitWidth, varargin)
     %% Fit Data
     
     switch fitModel
-        case 'FitAll'
-            Params0 = [10000, 600, 0, 0];
-            FitParams = lsqcurvefit(@NoConvModel, Params0, theta, I);
-    
-            if nargout ~= 4
-                error('ERR: When ''FitAll'' fitting model is used without convolution, the number of output data must be 4');
-            else
-                varargout = num2cell(FitParams,1);
+        case 'FitAll'       % If 'FitAll' model is used
+
+            if isequal(ConvOp, 'Lorentz')       % convolution with Lorentzian
+                Model = getConvModel(@FitAllModel, @Lor);
+            elseif isequal(ConvOp, 'Gauss')     % convolution with Gaussian function
+                Model = getConvModel(@FitAllModel, @Gauss);
+            else        % without convolution
+                Model = @FitAllModel;
             end
+
+            if UseConv      % with convolution
+
+                Params0 = [1, 700, 1e4, 0, 0];
+                LowerBound = [0, 0, 0, -Inf, -Inf];
+                UpperBound = Inf(1,5);
+                FitParams = lsqcurvefit(Model, Params0, theta, I, LowerBound, UpperBound);
+
+                if nargout ~= 5
+                    error('ERR: When ''FitAll'' fitting model is used with convolution, the number of output data must be 5');
+                else
+                    varargout = num2cell(FitParams,1);
+                end
+
+            else        % without convolution
+
+                Params0 = [700, 1e4, 0, 0];       % initial values of fitting parameters. [lambda, I_0, thetaShift, Ishift]
+                FitParams = lsqcurvefit(Model, Params0, theta, I);
+        
+                if nargout ~= 4
+                    error('ERR: When ''FitAll'' fitting model is used without convolution, the number of output data must be 4');
+                else
+                    varargout = num2cell(FitParams,1);
+                end
+            end
+
+            if PlotFit
+                figure;
+                hold on;
+                plot(theta, I,'.','Color','black');
+                plot(theta, Model(FitParams,theta));
+                hold off;
+            end
+
     
         case 'FitLambda'
+
+
 
     
         case 'FitIntensity'
     end
     
     
-    %% Define model functions
-
-    % Lorentzian function
-    function L = Lor(gamma, X)
-        L = 1/(pi*gamma*(1 + X^2/gamma^2));
-    end
+    %% Define frequently used functions
 
     % \beta(theta) = 0.5*(2*pi/lambda)*slitWidth*sin(theta)
     function beta = Beta(lambda, slitWidth, theta)
         beta = 1e3*(pi/lambda)*slitWidth*sin(1e-3*theta);
     end
 
-    % \gamma(theta) = 0.5*(2*pi/lambda)*slitDist*sin(theat)
+    % \gamma(theta) = 0.5*(2*pi/lambda)*slitDist*sin(theta)
     function gamma = Gamma(lambda, slitDist, theta)
         gamma = 1e3*(pi/lambda)*slitDist*sin(1e-3*theta);
     end
 
-    % 'NoConv' model
-    function I = NoConvModel(Params, theta)
-        % Params = [I_0, lambda, thetaShift, Ishift]
+    % Lorentzian function
+    function L = Lor(gamma, X)
+        L = 1./(pi*gamma*(1 + X.^2/gamma^2));
+    end
+
+    % Gaussian function
+    function G = Gauss(sigma, X)
+        G = (1/sqrt(2*pi*sigma^2))*exp(-X.^2/(2*sigma^2));
+    end
+
+    %% Define monocromatic interference function
+
+    % 'FitAll' model, without convolution
+    function I = FitAllModel(Params, theta)
+        % Params = [lambda, I_0, thetaShift, Ishift]
 
         I = zeros(numel(theta),1);
         for it = 1:numel(I)
             if theta(it) ~= Params(3)
-                I(it) = Params(1) * cos( Gamma(Params(2), slitDist, theta(it)-Params(3)) )^2;
-                I(it) = I(it) * sin( Beta(Params(2), slitWidth, theta(it)-Params(3)) )^2 / Beta(Params(2), slitWidth, theta(it)-Params(3))^2;
+                I(it) = Params(2) * cos( Gamma(Params(1), slitDist, theta(it)-Params(3)) )^2;
+                I(it) = I(it) * sin( Beta(Params(1), slitWidth, theta(it)-Params(3)) )^2 / Beta(Params(1), slitWidth, theta(it)-Params(3))^2;
                 I(it) = I(it) + Params(4);
             else
-                I(it) = Params(1) * cos( Gamma(Params(2), Params(3), theta(it)) )^2 + Params(4);
+                I(it) = Params(2) * cos( Gamma(Params(1), slitDist, theta(it)-Params(3)) )^2 + Params(4);
             end
         end
     end
 
-    % 'FitLorentz' model
-    function I = FitLorentzModel(Params, theta)
+    % 'FitLambda' model
+    function I = FitLambdaModel(Params, theta)
+        % Params = [lambda, I_0]
 
         I = zeros(numel(theta),1);
-        Mono = @(x) NoConvModel([Params(1), a, b, c, 0], x); 
         for it = 1:numel(I)
-            I(it) = Params(1)*integral();
+            if theta(it) ~= thetaShift
+                I(it) = Params(2) * cos( Gamma(Params(1), slitDist, theta(it)-thetaShift) )^2;
+                I(it) = I(it) * sin( Beta(Params(1), slitWidth, theta(it)-thetaShift) )^2 / Beta(Params(1), slitWidth, theta(it)-thetaShift)^2;
+                I(it) = I(it) + Ishift;
+            else
+                I(it) = Params(2) * cos( Gamma(Params(1), slitDist, theta(it)-thetaShift) )^2 + Ishift;
+            end
         end
+    end
+
+    % 'FitIntensity' model
+
+
+    %% Define convolution function
+
+    function ConvModelHandle = getConvModel(ModelFunc, ConvKer)
+        % <Description>
+        % Generates function handle for the convolution of given monocromatic function and the convolution kernel
+        %
+        % <Input>
+        % ModelFunc : function hande for the model before convolution
+        %             The first element of the fitting parameter of ModelFunc, Params(1), must be lambda(wavelength of light in nanometers)
+        % ConvKer : function handle for the convolution kernel
+        %
+        % <Output>
+        % Function handle of the model function obtained by convolution of ModelFunc and ConvFunc
+        % Let Params_orig be the fitting parameters of ModelFunc, and let Params_conv be the fitting parameter of the convolution kernel.
+        % Then, Params = [Params_orig, Params_conv] is the fitting parameter of the output function, ConvFunc.
+        % Therefore, ConvFunc is a function of Params = [Params_orig, Params_conv] and theta.
+
+        function I = ConvModel(Params, theta) 
+
+            function Y = ModelFunc_k(k,theta)   % ModelFunc in k-space
+                Y = zeros(size(k));
+                for itx = 1:numel(Y)
+                    Y(itx) = ModelFunc([2*pi/k(itx), Params(3:end)], theta);
+                end
+            end
+
+            I = zeros(numel(theta),1);
+            for it = 1:numel(I)
+                ConvInt = @(k) ModelFunc_k(k+2*pi/Params(2), theta(it)).*ConvKer(Params(1), k);        % convolution integrand
+                I(it) = Integrate_symlog(ConvInt, -10*Params(1), 10*Params(1), 2e2*(16+log10(Params(1))) );
+            end
+        end
+
+        ConvModelHandle = @ConvModel;
+    end
+
+    %% Define symmetric-log integration function
+
+    function Int = Integrate_symlog(f, min, max, N)
+        % <Description>
+        % numerically integrates f(x) from min to max(min < 0 < max) using a symmetric logarithmic grid around zero
+        %
+        % <Input>
+        % f : [function handle] function handle of the integrand.
+        %                       The integrand is assumed to be sharply peaked around zero.
+        % min : [numeric] lower limit of the integral. Must be negative
+        % max : [numeric] upper limit of the integral. Must be positive
+        % N : [numeric] number of total logarithmic grid points.
+        %
+        % <Output>
+        % Int : [numeric] approximate value of the integral ∫_a^b f(x) dx
+        
+        if min >= 0 || max <= 0
+            error('ERR: This function requires min < 0 and max > 0 to integrate around zero.');
+        end
+    
+        if mod(N, 2) ~= 0
+            N = N + 1; % Make N even
+        end
+        N_half = N / 2;
+    
+        xL = -logspace(log10(abs(min)), log10(1e-16), N_half);  % create log grid for left(negative) side
+        xR = logspace(log10(1e-16), log10(max), N_half);        % create log grid for right(positive) side
+        x = [xL, xR];   % combine grid   
+        y = f(x);       % evaluate function on grid
+    
+        Int = trapz(x, y);      % integrate using trapz
     end
 
 end
