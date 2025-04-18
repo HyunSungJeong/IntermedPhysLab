@@ -19,5 +19,10 @@ for it = 1:numel(I)
 		I(it) = Params(2) * cos( Gamma(Params(1), Params(3), theta(it)) )^2 + Params(4);% + 200*(rand-0.5);
 	end
 end
-[gamma, I_0] = ConvFit(theta,I,slitDist,slitWidth,'FitIntensity',lambda,thetaShift,Ishift,'Gauss','-v')
-%[gamma, lambda, I_0] = ConvFit(theta,I,slitDist,slitWidth,'FitLambda',thetaShift,Ishift,'Gauss','-v')
+%[gamma, I_0] = ConvFit(theta,I,slitDist,slitWidth,'FitIntensity',lambda,thetaShift,Ishift,'Lorentz','-v')
+[gamma, lambda, I_0] = ConvFit(theta,I,slitDist,slitWidth,'FitLambda',thetaShift,Ishift,'Lorentz','-v')
+%[gamma, lambda, I_0, thetaShift, Ishift] = ConvFit(theta,I,slitDist,slitWidth,'FitAll','Lorentz','-v')
+
+%I_0 = ConvFit(theta,I,slitDist,slitWidth,'FitIntensity',lambda,thetaShift,Ishift,'-v')
+%[lambda, I_0] = ConvFit(theta,I,slitDist,slitWidth,'FitLambda',thetaShift,Ishift,'-v')
+%[lambda, I_0, thetaShift, Ishift] = ConvFit(theta,I,slitDist,slitWidth,'FitAll','-v')

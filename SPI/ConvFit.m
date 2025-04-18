@@ -22,13 +22,13 @@ function varargout = ConvFit(theta, I, slitDist, slitWidth, varargin)
     %                  \gamma(theta) = 0.5*(2*pi/lambda)*slitDist*sin(theat)
     %            (lambda, I_0, thetaShift, Ishift) are fitting parameters, and there is no convolution
     %
-    % 'FitLambda', ... : [numeric] Similar to 'NoConv1' option, but 'thetaShift' and 'Ishift' are fixed.
+    % 'FitLambda', ... : [numeric] Similar to 'FitAll' option, but 'thetaShift' and 'Ishift' are fixed.
     %                            The inputs must be 'thetaShift' and 'Ishift', in this given order.
     %                            'thetaShift' must be in units of miliradians, and
     %                            'Ishift' must be either voltage(laser experiments) in mV units or # of photons(single-photon experiments).
     %                            (lambda, I_0) are fitting parameters.
     %
-    % 'FitIntensity', ... : [numeric] Similar to 'NoConv2' option, but 'lambda' is also fixed.
+    % 'FitIntensity', ... : [numeric] Similar to 'FitLambda' option, but 'lambda' is also fixed.
     %                            The inputs must be 'lambda', 'thetaShift', and 'Ishift', in this given order.
     %                            'lambda' must be in units of nanometers and 'thetaShift' must be in units of miliradians.
     %                            'Ishift' must be # of photons(single-photon experiment) or voltage in mV(laser experment) units.
@@ -49,7 +49,10 @@ function varargout = ConvFit(theta, I, slitDist, slitWidth, varargin)
     %              and sigma is a fitting parameter
     %              (Default: not used)
     %
-    % <Other options>
+    % 3. Other options
+    %
+    % 'InitParams', .. : [numeric vector] The initial value of the fitting parameters to be fed into 'lsqcurvefit'
+    %
     % '-v' : When used, the data is plotted together with the fitted curve
     %           (Default: not used)
     %
@@ -99,7 +102,9 @@ function varargout = ConvFit(theta, I, slitDist, slitWidth, varargin)
     % Default options
     fitModel = NaN;
     ConvOp = NaN;
+    UseConv = false;
     PlotFit = false;
+    InitParamsGiven = false;
 
     % parse input options
     while ~isempty(varargin)
@@ -149,6 +154,16 @@ function varargout = ConvFit(theta, I, slitDist, slitWidth, varargin)
                 ConvOp = 'Gauss';
                 varargin(1) = [];
 
+            case 'InitParams'
+
+                if ~isnumeric(varargin{2})
+                    error('ERR: Initial value of fitting parameters must be real numbers');
+                else
+                    InitParamsGiven = true;
+                    Params0 = varargin{2};
+                    varargin(1:2) = [];
+                end
+
             case '-v'
                 PlotFit = true;
                 varargin(1) = [];
@@ -160,6 +175,44 @@ function varargout = ConvFit(theta, I, slitDist, slitWidth, varargin)
                     error(['ERR: Unknown option ''',varargin{1},'''']);
                 end
         end
+    end
+
+    if UseConv
+        switch fitModel
+            case 'FitAll'
+                if numel(Params0) ~= 5
+                    error('ERR: The initial values of fitting parameters must be 5 in this fitting option');
+                end
+
+            case 'FitLambda'
+                if numel(Params0) ~= 3
+                    error('ERR: The initial values of fitting parameters must be 3 in this fitting option');
+                end
+
+            case 'FitIntensity'
+                if numel(Params0) ~= 2
+                    error('ERR: The initial values of fitting parameters must be 2 in this fitting option');
+                end
+        end % switch-case
+
+    else
+        switch fitModel
+            case 'FitAll'
+                if numel(Params0) ~= 4
+                    error('ERR: The initial values of fitting parameters must be 4 in this fitting option');
+                end
+
+            case 'FitLambda'
+                if numel(Params0) ~= 2
+                    error('ERR: The initial values of fitting parameters must be 2 in this fitting option');
+                end
+
+            case 'FitIntensity'
+                if numel(Params0) ~= 1
+                    error('ERR: The initial values of fitting parameters must be 1 in this fitting option');
+                end
+        end % switch-case
+
     end
 
     if isnan(fitModel)
@@ -181,9 +234,19 @@ function varargout = ConvFit(theta, I, slitDist, slitWidth, varargin)
 
             if UseConv      % with convolution
 
-                Params0 = [1, 700, 1e4, 0, 0];
-                LowerBound = [0, 0, 0, -Inf, -Inf];
-                UpperBound = Inf(1,5);
+                LowerBound = [0, 300, 0, -Inf, -Inf];
+                UpperBound = [1e-2, 800, Inf(1,3)];
+
+                if InitParamsGiven
+                    for it = 1:numel(Params0)
+                        if Params0(it) < LowerBound(it) || Params0(it) > UpperBound(it)
+                            error('ERR: Initial value of fitting parameters is unphysical');
+                        end
+                    end
+                else
+                    Params0 = [1, 700, 1e4, 0, 0];
+                end
+
                 FitParams = lsqcurvefit(Model, Params0, theta, I, LowerBound, UpperBound);
 
                 if nargout ~= 5
@@ -194,9 +257,19 @@ function varargout = ConvFit(theta, I, slitDist, slitWidth, varargin)
 
             else        % without convolution
 
-                Params0 = [700, 1e4, 0, 0];       % initial values of fitting parameters. [lambda, I_0, thetaShift, Ishift]
-                LowerBound = [0, 0, -Inf, -Inf];
-                UpperBound = Inf(1,4);
+                LowerBound = [300, 0, -Inf, -Inf];
+                UpperBound = [800, Inf(1,3)];
+
+                if InitParamsGiven
+                    for it = 1:numel(Params0)
+                        if Params0(it) < LowerBound(it) || Params0(it) > UpperBound(it)
+                            error('ERR: Initial value of fitting parameters is unphysical');
+                        end
+                    end
+                else
+                    Params0 = [700, 1e4, 0, 0];
+                end
+
                 FitParams = lsqcurvefit(Model, Params0, theta, I, LowerBound, UpperBound);
         
                 if nargout ~= 4
@@ -209,19 +282,31 @@ function varargout = ConvFit(theta, I, slitDist, slitWidth, varargin)
     
         case 'FitLambda'
 
+            FitLambdaModel = @(Params,theta) FitAllModel([Params(1:2),thetaShift,Ishift], theta);
+
             if isequal(ConvOp, 'Lorentz')       % convolution with Lorentzian
-                Model = getConvModel(@FitLambdaModel, @Lor);
+                Model = getConvModel(FitLambdaModel, @Lor);
             elseif isequal(ConvOp, 'Gauss')     % convolution with Gaussian function
-                Model = getConvModel(@FitLambdaModel, @Gauss);
+                Model = getConvModel(FitLambdaModel, @Gauss);
             else        % without convolution
-                Model = @FitLambdaModel;
+                Model = FitLambdaModel;
             end
 
             if UseConv      % with convolution
 
-                Params0 = [1, 700, 1e4];
-                LowerBound = [0, 0, 0];
-                UpperBound = Inf(1,3);
+                LowerBound = [0, 300, 1500];
+                UpperBound = [1e-2, 800, 2500];
+
+                if InitParamsGiven
+                    for it = 1:numel(Params0)
+                        if Params0(it) < LowerBound(it) || Params0(it) > UpperBound(it)
+                            error('ERR: Initial value of fitting parameters is unphysical');
+                        end
+                    end
+                else
+                    Params0 = [1, 700, 1e4];
+                end
+                
                 FitParams = lsqcurvefit(Model, Params0, theta, I, LowerBound, UpperBound);
     
                 if nargout ~= 3
@@ -233,9 +318,19 @@ function varargout = ConvFit(theta, I, slitDist, slitWidth, varargin)
 
             else        % without convolution
 
-                Params0 = [700, 1e4];       % initial values of fitting parameters. [lambda, I_0, thetaShift, Ishift]
-                LowerBound = [0, 0];
-                UpperBound = Inf(1,2);
+                LowerBound = [300, 0];
+                UpperBound = [800, Inf];
+
+                if InitParamsGiven
+                    for it = 1:numel(Params0)
+                        if Params0(it) < LowerBound(it) || Params0(it) > UpperBound(it)
+                            error('ERR: Initial value of fitting parameters is unphysical');
+                        end
+                    end
+                else
+                    Params0 = [700, 1e4];
+                end
+
                 FitParams = lsqcurvefit(Model, Params0, theta, I, LowerBound, UpperBound);
         
                 if nargout ~= 2
@@ -248,20 +343,33 @@ function varargout = ConvFit(theta, I, slitDist, slitWidth, varargin)
 
         case 'FitIntensity'
 
+            FitLambdaModel = @(Params,theta) FitAllModel([Params(1:2),thetaShift,Ishift], theta);
+            FitIntensityModel = @(Params,theta) FitAllModel([lambda,Params(1),thetaShift,Ishift], theta);
+
             % ***we must use FitLambdaModel when convultion is used, since we have to perform k-integration
             if isequal(ConvOp, 'Lorentz')       % convolution with Lorentzian
-                Model = getConvModel(@FitLambdaModel, @Lor, 'FixLambda', lambda);
+                Model = getConvModel(FitLambdaModel, @Lor, 'FixLambda', lambda);
             elseif isequal(ConvOp, 'Gauss')     % convolution with Gaussian function
-                Model = getConvModel(@FitLambdaModel, @Gauss, 'FixLambda', lambda);
+                Model = getConvModel(FitLambdaModel, @Gauss, 'FixLambda', lambda);
             else        % without convolution
-                Model = @FitIntensityModel;
+                Model = FitIntensityModel;
             end
 
-            if UseConv      % with convolution
+            if UseConv      % with convolutio
 
-                Params0 = [1e-1, 1.9*1e4];
                 LowerBound = [0, 0];
-                UpperBound = Inf(1,2);
+                UpperBound = [1e-2, Inf];
+
+                if InitParamsGiven
+                    for it = 1:numel(Params0)
+                        if Params0(it) < LowerBound(it) || Params0(it) > UpperBound(it)
+                            error('ERR: Initial value of fitting parameters is unphysical');
+                        end
+                    end
+                else
+                    Params0 = [1e-1, 1.9*1e4];
+                end
+
                 FitParams = lsqcurvefit(Model, Params0, theta, I, LowerBound, UpperBound);
     
                 if nargout ~= 2
@@ -273,9 +381,17 @@ function varargout = ConvFit(theta, I, slitDist, slitWidth, varargin)
 
             else        % without convolution
 
-                Params0 = 700;       % initial values of fitting parameters. [lambda, I_0, thetaShift, Ishift]
                 LowerBound = 0;
                 UpperBound = Inf;
+
+                if InitParamsGiven
+                    if Params0 < LowerBound || Params0 > UpperBound
+                        error('ERR: Initial value of fitting parameter is unphysical');
+                    end
+                else
+                    Params0 = 700;
+                end
+
                 FitParams = lsqcurvefit(Model, Params0, theta, I, LowerBound, UpperBound);
         
                 if nargout ~= 1
@@ -292,7 +408,8 @@ function varargout = ConvFit(theta, I, slitDist, slitWidth, varargin)
         figure;
         hold on;
         plot(theta, I,'.','Color','black');
-        plot(theta, Model(FitParams,theta));
+        thetaFit = linspace(theta(1), theta(end), 1e3);
+        plot(thetaFit, Model(FitParams,thetaFit));
         hold off;
     end
     
@@ -326,45 +443,13 @@ function varargout = ConvFit(theta, I, slitDist, slitWidth, varargin)
         % Params = [lambda, I_0, thetaShift, Ishift]
 
         I = zeros(numel(theta),1);
-        for it = 1:numel(I)
-            if theta(it) ~= Params(3)
-                I(it) = Params(2) * cos( Gamma(Params(1), slitDist, theta(it)-Params(3)) )^2;
-                I(it) = I(it) * sin( Beta(Params(1), slitWidth, theta(it)-Params(3)) )^2 / Beta(Params(1), slitWidth, theta(it)-Params(3))^2;
-                I(it) = I(it) + Params(4);
+        for itx = 1:numel(I)
+            if theta(itx) ~= Params(3)
+                I(itx) = Params(2) * cos( Gamma(Params(1), slitDist, theta(itx)-Params(3)) )^2;
+                I(itx) = I(itx) * sin( Beta(Params(1), slitWidth, theta(itx)-Params(3)) )^2 / Beta(Params(1), slitWidth, theta(itx)-Params(3))^2;
+                I(itx) = I(itx) + Params(4);
             else
-                I(it) = Params(2) * cos( Gamma(Params(1), slitDist, theta(it)-Params(3)) )^2 + Params(4);
-            end
-        end
-    end
-
-    % 'FitLambda' model
-    function I = FitLambdaModel(Params, theta)
-        % Params = [lambda, I_0]
-
-        I = zeros(numel(theta),1);
-        for it = 1:numel(I)
-            if theta(it) ~= thetaShift
-                I(it) = Params(2) * cos( Gamma(Params(1), slitDist, theta(it)-thetaShift) )^2;
-                I(it) = I(it) * sin( Beta(Params(1), slitWidth, theta(it)-thetaShift) )^2 / Beta(Params(1), slitWidth, theta(it)-thetaShift)^2;
-                I(it) = I(it) + Ishift;
-            else
-                I(it) = Params(2) * cos( Gamma(Params(1), slitDist, theta(it)-thetaShift) )^2 + Ishift;
-            end
-        end
-    end
-
-    % 'FitIntensity' model
-    function I = FitIntensityModel(Params, theta)
-        % Params = [I_0]
-
-        I = zeros(numel(theta),1);
-        for it = 1:numel(I)
-            if theta(it) ~= thetaShift
-                I(it) = Params(1) * cos( Gamma(lambda, slitDist, theta(it)-thetaShift) )^2;
-                I(it) = I(it) * sin( Beta(lambda, slitWidth, theta(it)-thetaShift) )^2 / Beta(lambda, slitWidth, theta(it)-thetaShift)^2;
-                I(it) = I(it) + Ishift;
-            else
-                I(it) = Params(1) * cos( Gamma(lambda, slitDist, theta(it)-thetaShift) )^2 + Ishift;
+                I(itx) = Params(2) * cos( Gamma(Params(1), slitDist, theta(itx)-Params(3)) )^2 + Params(4);
             end
         end
     end
@@ -429,16 +514,16 @@ function varargout = ConvFit(theta, I, slitDist, slitWidth, varargin)
             end
 
             I = zeros(numel(theta),1);
-            for it = 1:numel(I)
+            for ity = 1:numel(I)
 
                 % define convolution integrand
                 if ~lambdaFixed     % If lambda is not fixed by input
-                    ConvInt = @(k) ModelFunc_k(k+2*pi/Params(2), theta(it)).*ConvKer(Params(1), k);        
+                    ConvInt = @(k) ModelFunc_k(k+2*pi/Params(2), theta(ity)).*ConvKer(Params(1), k);        
                 else                % If lambda is fixed by input
-                    ConvInt = @(k) ModelFunc_k(k+2*pi/lambda_C, theta(it)).*ConvKer(Params(1), k);
+                    ConvInt = @(k) ModelFunc_k(k+2*pi/lambda_C, theta(ity)).*ConvKer(Params(1), k);
                 end
 
-                I(it) = Integrate_symlog(ConvInt, -10*Params(1), 10*Params(1), 2e2*(16+log10(Params(1))) );     % convolution integration
+                I(ity) = Integrate_symlog(ConvInt, -10*Params(1), 10*Params(1), 2e2*(16+log10(Params(1))) );     % convolution integration
             end
         end
 
