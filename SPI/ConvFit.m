@@ -177,42 +177,44 @@ function varargout = ConvFit(theta, I, slitDist, slitWidth, varargin)
         end
     end
 
-    if UseConv
-        switch fitModel
-            case 'FitAll'
-                if numel(Params0) ~= 5
-                    error('ERR: The initial values of fitting parameters must be 5 in this fitting option');
-                end
-
-            case 'FitLambda'
-                if numel(Params0) ~= 3
-                    error('ERR: The initial values of fitting parameters must be 3 in this fitting option');
-                end
-
-            case 'FitIntensity'
-                if numel(Params0) ~= 2
-                    error('ERR: The initial values of fitting parameters must be 2 in this fitting option');
-                end
-        end % switch-case
-
-    else
-        switch fitModel
-            case 'FitAll'
-                if numel(Params0) ~= 4
-                    error('ERR: The initial values of fitting parameters must be 4 in this fitting option');
-                end
-
-            case 'FitLambda'
-                if numel(Params0) ~= 2
-                    error('ERR: The initial values of fitting parameters must be 2 in this fitting option');
-                end
-
-            case 'FitIntensity'
-                if numel(Params0) ~= 1
-                    error('ERR: The initial values of fitting parameters must be 1 in this fitting option');
-                end
-        end % switch-case
-
+    if InitParamsGiven
+        if UseConv
+            switch fitModel
+                case 'FitAll'
+                    if numel(Params0) ~= 5
+                        error('ERR: The initial values of fitting parameters must be 5 in this fitting option');
+                    end
+    
+                case 'FitLambda'
+                    if numel(Params0) ~= 3
+                        error('ERR: The initial values of fitting parameters must be 3 in this fitting option');
+                    end
+    
+                case 'FitIntensity'
+                    if numel(Params0) ~= 2
+                        error('ERR: The initial values of fitting parameters must be 2 in this fitting option');
+                    end
+            end % switch-case
+    
+        else
+            switch fitModel
+                case 'FitAll'
+                    if numel(Params0) ~= 4
+                        error('ERR: The initial values of fitting parameters must be 4 in this fitting option');
+                    end
+    
+                case 'FitLambda'
+                    if numel(Params0) ~= 2
+                        error('ERR: The initial values of fitting parameters must be 2 in this fitting option');
+                    end
+    
+                case 'FitIntensity'
+                    if numel(Params0) ~= 1
+                        error('ERR: The initial values of fitting parameters must be 1 in this fitting option');
+                    end
+            end % switch-case
+    
+        end
     end
 
     if isnan(fitModel)
@@ -355,7 +357,7 @@ function varargout = ConvFit(theta, I, slitDist, slitWidth, varargin)
                 Model = FitIntensityModel;
             end
 
-            if UseConv      % with convolutio
+            if UseConv      % with convolution
 
                 LowerBound = [0, 0];
                 UpperBound = [1e-2, Inf];
