@@ -296,8 +296,8 @@ function varargout = ConvFit(theta, I, slitDist, slitWidth, varargin)
 
             if UseConv      % with convolution
 
-                LowerBound = [0, 300, 1500];
-                UpperBound = [1e-2, 800, 2500];
+                LowerBound = [1e-8, 300, 2000];
+                UpperBound = [1e-2, 800, 1e4];
 
                 if InitParamsGiven
                     for it = 1:numel(Params0)
@@ -407,12 +407,12 @@ function varargout = ConvFit(theta, I, slitDist, slitWidth, varargin)
     end % switch-case
 
     if PlotFit      % if '-v' option is used
-        figure;
-        hold on;
-        plot(theta, I,'.','Color','black');
+        %figure;
+        %hold on;
+        %plot(theta, I,'.','Color','black');
         thetaFit = linspace(theta(1), theta(end), 1e3);
-        plot(thetaFit, Model(FitParams,thetaFit));
-        hold off;
+        plot(thetaFit, Model(FitParams,thetaFit), 'Color', [.85 .325 .098]);
+        %hold off;
     end
     
     

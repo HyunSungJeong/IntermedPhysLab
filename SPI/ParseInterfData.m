@@ -1,7 +1,90 @@
 function ParseInterfData()
 
-    path = [fileparts(mfilename('fullpath')),filesep,'data',filesep,'LASER_Double_14.txt'];
+    path = [fileparts(mfilename('fullpath')),filesep,'SPITaskData',filesep,'B1_LASER_Double_16.txt'];
+   
+    slitWidth = 85;
+
+
+    data = importdata(path);
+    if isstruct(data)
+        data = data.data;
+    end
+
+    theta = 1e3*data(:,1);
+    I = data(:,2);
+    
+
+    %{
+    % Laser No.14
+    Title = '$\mathrm{Double \ Slit \ Interference} \left( \mathrm{No.}14 \right)$';
     slitDist = 356;
+    thetaShift = 6.7;   
+    Params0 = [4.16*1e-4, 639, 6571];
+    textX = 12;
+    textY = 5000;
+    thetafit = theta(theta < 12);
+    Ifit = I(theta < 12);
+    Ishift = 0;
+    %}
+
+    %{
+    % Laser No.15
+    Title = '$\mathrm{Double \ Slit \ Interference} \left( \mathrm{No.}15 \right)$';
+    slitDist = 406;
+    thetaShift = 3.6;   
+    Params0 = [1e-4, 656, 3527];
+    textX = 12;
+    textY = 3000;
+    thetafit = theta(theta < 8);
+    Ifit = I(theta < 8);
+    Ishift = 0;
+    %}
+
+    %{
+    % Laser No.16
+    Title = '$\mathrm{Double \ Slit \ Interference} \left( \mathrm{No.}16 \right)$';
+    slitDist = 457;
+    thetaShift = 4.8;   
+    Params0 = [1e-4, 650, 3100];
+    textX = 10;
+    textY = 2500;
+    thetafit = theta(theta < 8);
+    Ifit = I(theta < 8);
+    Ishift = 0;
+    %}
+
+    %{
+
+    figure;
+    hold on;
+    set(gca,'XScale','linear','YScale','linear','fontsize',20);
+    xlabel('$\theta \left[ \mathrm{mrad} \right] $','Interpreter','latex','FontSize',25);
+    ylabel('$\mathrm{Output \ Voltage} \left[ \mathrm{mV} \right]$','Interpreter','latex','FontSize',25);
+    title(Title,'Interpreter','latex','FontSize',25);
+    
+    [gamma, lambda, I_0] = ConvFit(thetafit,Ifit,slitDist,slitWidth,'FitLambda',thetaShift,Ishift,'Lorentz','InitParams',Params0,'-v');
+    plot(theta,I,'.','color','black');
+
+    FitLambdaModel = @(Params,theta) FitAllModel([Params(1:2),thetaShift,Ishift], theta);
+    Model = getConvModel(FitLambdaModel, @Lor);     
+    Icurve = Model([gamma, lambda, I_0], thetafit); 
+    SS_res = sum((Ifit - Icurve).^2);               
+    SS_tot = sum((Ifit - mean(Ifit)).^2);       
+    Rsq = 1 - SS_res / SS_tot;
+    text(textX, textY, ['$R^{2} = ',sprintf('%.3g',Rsq),'$'],'Interpreter','latex','FontSize',20);
+
+    legend({'Fitted curve', 'Measured Data'},'Location','northeast','FontSize',20);
+    hold off;
+    disp(['gamma = ',sprintf('%.15g',gamma)]);
+    disp([lambda, I_0]);
+    %}
+
+
+    %% -------------------------------------------------------------------------
+
+
+    path = [fileparts(mfilename('fullpath')),filesep,'SPITaskData',filesep,'B2_LASER_Single_14_R.txt'];
+   
     slitWidth = 85;
 
 
@@ -13,25 +96,63 @@ function ParseInterfData()
     theta = 1e3*data(:,1);
     I = data(:,2);
 
-    %{
-    Params0 = [600, 1500, 4, 0];
-    [lambda, I_0, thetaShift, Ishift] = ConvFit(theta,I,slitDist,slitWidth,'FitAll','InitParams',Params0,'-v');
-    disp([lambda, I_0, thetaShift, Ishift]);
-    %}
 
     %{
-    Params0 = [1e-5, 600, 1500, 4, 0];
-    [gamma, lambda, I_0, thetaShift, Ishift] = ConvFit(theta,I,slitDist,slitWidth,'FitAll','Lorentz','InitParams',Params0,'-v');
-    disp(['gamma = ',sprintf('%.15g',gamma)]);
-    disp([lambda, I_0, thetaShift, Ishift]);
+    % Laser Single Left
+    Title = '$\mathrm{Single \ Slit \ Diffraction \ - \ Left}$';
+    slitDist = 356;
+    thetaShift = 5.9;   
+    Params0 = [540, 2283];
+    textX = 13;
+    textY = 2000;
+    thetafit = theta(theta < 14);
+    Ifit = I(theta < 14);
+    Ishift = 0;
     %}
 
     %{}
-    Params0 = [1e-5, 600, 1500];
-    [gamma, lambda, I_0] = ConvFit(theta,I,slitDist,slitWidth,'FitLambda',4.4,0,'Lorentz','InitParams',Params0,'-v');
-    disp(['gamma = ',sprintf('%.15g',gamma)]);
+    % Laser Single Right
+    Title = '$\mathrm{Single \ Slit \ Diffraction \ - \ Right}$';
+    slitDist = 356;
+    thetaShift = 7.8;   
+    Params0 = [540, 2283];
+    textX = 13;
+    textY = 2000;
+    thetafit = theta(theta < 14);
+    Ifit = I(theta < 14);
+    Ishift = 0;
+    %}
+
+    %{}
+
+    figure;
+    hold on;
+    set(gca,'XScale','linear','YScale','linear','fontsize',20);
+    xlabel('$\theta \left[ \mathrm{mrad} \right] $','Interpreter','latex','FontSize',25);
+    ylabel('$\mathrm{Output \ Voltage} \left[ \mathrm{mV} \right]$','Interpreter','latex','FontSize',25);
+    title(Title,'Interpreter','latex','FontSize',25);
+    
+    [lambda, I_0] = ConvFit(thetafit,Ifit,slitDist,slitWidth,'FitLambda',thetaShift,Ishift,'InitParams',Params0,'-v');
+    plot(theta,I,'.','color','black');
+
+    FitLambdaModel = @(Params,theta) FitAllModel([Params(1:2),thetaShift,Ishift], theta);  
+    Icurve = FitLambdaModel([lambda, I_0], thetafit);
+    SS_res = sum((Ifit - Icurve).^2);       
+    SS_tot = sum((Ifit - mean(Ifit)).^2);      
+    Rsq = 1 - SS_res / SS_tot;
+    text(textX, textY, ['$R^{2} = ',sprintf('%.3g',Rsq),'$'],'Interpreter','latex','FontSize',20);
+
+    legend({'Fitted curve', 'Measured Data'},'Location','northeast','FontSize',20);
+    hold off;
     disp([lambda, I_0]);
     %}
+    
+    
+
+
+
+
+
 
     %{
     Params0 = [600, 1500];
