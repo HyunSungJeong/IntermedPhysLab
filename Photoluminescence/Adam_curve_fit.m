@@ -1,24 +1,27 @@
 function [params, loss_history] = Adam_curve_fit(model_func, x_data, y_data, init_params, options)
-% ADAM_CURVE_FIT Fits a function to data using the Adam optimizer, with bounds.
-%
-% Inputs:
-%   - model_func: function handle, y_hat = model_func(params, x_data)
-%   - x_data: input data
-%   - y_data: target/output data
-%   - init_params: initial guess (column vector)
-%   - options: struct with optional fields:
-%       .lr - learning rate (default: 0.01)
-%       .beta1 - decay rate for 1st moment (default: 0.9)
-%       .beta2 - decay rate for 2nd moment (default: 0.999)
-%       .epsilon - small constant (default: 1e-8)
-%       .max_iters - number of iterations (default: 1000)
-%       .loss_type - 'mse' or a custom loss function handle
-%       .lb - lower bounds for parameters (default: -Inf)
-%       .ub - upper bounds for parameters (default: +Inf)
-%
-% Outputs:
-%   - params: optimized parameter vector
-%   - loss_history: loss at each iteration
+    % ADAM_CURVE_FIT Fits a function to data using the Adam optimizer, with bounds and noise injection.
+    %
+    % Inputs:
+    %   - model_func: function handle, y_hat = model_func(params, x_data)
+    %   - x_data: input data
+    %   - y_data: target/output data
+    %   - init_params: initial guess (column vector)
+    %   - options: struct with optional fields:
+    %       .lr - learning rate (default: 0.01)
+    %       .beta1 - decay rate for 1st moment (default: 0.9)
+    %       .beta2 - decay rate for 2nd moment (default: 0.999)
+    %       .epsilon - small constant (default: 1e-8)
+    %       .max_iters - number of iterations (default: 1000)
+    %       .loss_type - 'mse' or a custom loss function handle
+    %       .lb - lower bounds for parameters (default: -Inf)
+    %       .ub - upper bounds for parameters (default: +Inf)
+    %
+    % Outputs:
+    %   - params: optimized parameter vector
+    %   - loss_history: loss at each iteration
+    %
+    % [params, loss_history] = adam_curve_fit(model_func, x_data, y_data, init_params, options)
+    % includes periodic random noise to avoid local minima.
 
     % Default options
     if ~isfield(options, 'lr'), options.lr = 0.01; end
@@ -69,6 +72,12 @@ function [params, loss_history] = Adam_curve_fit(model_func, x_data, y_data, ini
 
         % Parameter update
         params = params - options.lr * m_hat ./ (sqrt(v_hat) + options.epsilon);
+
+        % Inject random noise periodically to help escape local minima
+        if mod(t, 100) == 0
+            noise = randn(size(params)) * 0.01;
+            params = params + noise;
+        end
 
         % Apply parameter bounds (clipping)
         params = max(min(params, options.ub(:)), options.lb(:));
