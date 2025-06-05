@@ -1,6 +1,7 @@
-function I = RubySpec(I0, TransAmpR, Linewidth, Delta, E1, T, Energy)
+function I = Spec_4lev(I0, TransAmpR, Linewidth, Delta, E1, T, Energy)
     % <Description>
-    % Calculates normalized photoluminescence intensity at energies specified by 'Energy' of ruby
+    % Calculates normalized photoluminescence intensity at energies specified by 'Energy', 
+    % according to the 4-level effective model
     %
     % <Input>
     % I0 : [numeric] The overall factor in the photoluminescence amplitude
@@ -47,6 +48,12 @@ function I = RubySpec(I0, TransAmpR, Linewidth, Delta, E1, T, Energy)
         error('ERR: ''Delta'' must be a nonnegative scalar');
     elseif Delta < 0
         error('ERR: ''Delta'' must be nonnegative');
+    end
+
+    if ~isnumeric(E1) || ~isscalar(E1)
+        error('ERR: ''E1'' must be a nonegative scalar');
+    elseif E1 < 0
+        error('ERR: ''E1'' must be nonnegative');
     end
 
     if ~isnumeric(T) || ~isscalar(T)
