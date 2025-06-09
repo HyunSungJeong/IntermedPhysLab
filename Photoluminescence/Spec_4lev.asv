@@ -80,14 +80,12 @@ function I = Spec_4lev(I0, TransAmpR, Linewidth, Delta, E1, T, Energy, varargin)
     while ~isempty(varargin)
         switch varargin{1}
             case 'Broaden'
-                if ~ismember(varargin{2}, {'Lor', 'Gauss'})
+                if ~isemeber(varargin{2}, {'Lor', 'Gauss'})
                     error('ERR: ''Broaden'' option must be either ''Lor'' or ''Gauss''');
                 elseif isequal(varargin{2}, 'Lor')
                     Broaden = 'Lor';
-                    varargin(1:2) = [];
+                    var
                 else
-                    Broaden = 'Gauss';
-                    varargin(1:2) = [];
                 end
 
             otherwise 
@@ -123,11 +121,7 @@ function I = Spec_4lev(I0, TransAmpR, Linewidth, Delta, E1, T, Energy, varargin)
     I = zeros(numel(Energy), 1);
 
     for it = 1:numel(Energy)
-        if isequal(Broaden, 'Lor')
-            I(it) = I0 * ( d1^2 * Lorenztian((Energy(it)-E1), g1) + d2^2 * exp(-e_kb*Delta/T) * Lorenztian((Energy(it)-E2), g2) );
-        else
-            I(it) = I0 * ( d1^2 * Gauss((Energy(it)-E1), g1) + d2^2 * exp(-e_kb*Delta/T) * Gauss((Energy(it)-E2), g2) );
-        end
+        I(it) = I0 * ( d1^2 * Lorenztian((Energy(it)-E1), g1) + d2^2 * exp(-e_kb*Delta/T) * Lorenztian((Energy(it)-E2), g2) );
     end
 
     %% Define Lorentzain function
