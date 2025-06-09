@@ -1,14 +1,4 @@
-function I = Spec_4lev(I0, TransAmpR, Linewidth, Delta, E1, T, Energy, Mode)
-    arguments
-        I0 double {mustBeNonnegative}
-        TransAmpR double
-        Linewidth double
-        Delta double {mustBeNonnegative}
-        E1 double {mustBeNonnegative}
-        T double {mustBeNonnegative}
-        Energy double
-        Mode char {mustBeMember(Mode,{'L','G'})} = 'L'   % default = 'L'
-    end
+function I = Spec_4lev(I0, TransAmpR, Linewidth, Delta, E1, T, Energy, Mode = 'L')
     % <Description>
     % Calculates normalized photoluminescence intensity at energies specified by 'Energy', 
     % according to the 4-level effective model
@@ -99,15 +89,10 @@ function I = Spec_4lev(I0, TransAmpR, Linewidth, Delta, E1, T, Energy, Mode)
     % Intensity
     I = zeros(numel(Energy), 1);
 
-    if Mode == 'G'
-        for it = 1:numel(Energy)
-            I(it) = I0 * ( d1^2 * Gauss((Energy(it)-E1), g1) + d2^2 * exp(-e_kb*Delta/T) * Gauss((Energy(it)-E2), g2) );
-        end
-    else
-        for it = 1:numel(Energy)
-            I(it) = I0 * ( d1^2 * Lorenztian((Energy(it)-E1), g1) + d2^2 * exp(-e_kb*Delta/T) * Lorenztian((Energy(it)-E2), g2) );
-        end
+    for it = 1:numel(Energy)
+        I(it) = I0 * ( d1^2 * Gauss((Energy(it)-E1), g1) + d2^2 * exp(-e_kb*Delta/T) * Gauss((Energy(it)-E2), g2) );
     end
+
     %% Define Lorentzain function
     function Lor = Lorenztian(X, Gamma)
         Lor = Gamma / (X^2 + (Gamma/2)^2) / 2;
